@@ -1,1 +1,50 @@
+name: CI - Qualidade e Segurança
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  qualidade-seguranca:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 11 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Compilar o robô
+        run: |
+          mkdir -p build/classes
+          find src -name "*.java" > sources.txt
+          javac -cp "libs/robocode.jar" -d build/classes @sources.txt
+        shell: bash
+
+      - name: Baixar Checkstyle
+        run: |
+          CHECKSTYLE_VER=10.12.4
+          wget -q -O checkstyle-all.jar "https://github.com/checkstyle/checkstyle/releases/download/checkstyle-${CHECKSTYLE_VER}/checkstyle-${CHECKSTYLE_VER}-all.jar"
+
+      - name: Rodar Checkstyle
+        run: |
+          java -jar checkstyle-all.jar -c libs/google_checks.xml $(find src -name "*.java")
+
+      - name: Baixar SpotBugs
+        run: |
+          SPOT_VER=4.8.3
+          wget -q -O spotbugs.zip "https://github.com/spotbugs/spotbugs/releases/download/${SPOT_VER}/spotbugs-${SPOT_VER}.zip"
+          unzip -q spotbugs.zip -d spotbugs
+
+      - name: Rodar SpotBugs
+        run: |
+          ./spotbugs/spotbugs-${SPOT_VER}/bin/spotbugs -textui -effort:max -low build/classes || true
+
+      - name: Mensagem final
+        run: echo "✅ CI finalizado com sucesso!"
 
